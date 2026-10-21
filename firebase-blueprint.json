@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User hydration profile and reminder settings",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Unique user ID" },
+        "displayName": { "type": "string", "description": "User display name" },
+        "email": { "type": "string", "description": "User email address" },
+        "dailyGoalMl": { "type": "integer", "description": "Daily hydration goal in milliliters" },
+        "unit": { "type": "string", "description": "Measurement unit preference (ml or oz)", "enum": ["ml", "oz"] },
+        "reminderEnabled": { "type": "boolean", "description": "Whether intake reminder notifications are active" },
+        "reminderIntervalMinutes": { "type": "integer", "description": "Frequency in minutes for reminders" },
+        "reminderStartTime": { "type": "string", "description": "Daily start time for reminders HH:mm" },
+        "reminderEndTime": { "type": "string", "description": "Daily end time for reminders HH:mm" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp via serverTimestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Update timestamp via serverTimestamp" }
+      },
+      "required": ["userId", "dailyGoalMl", "createdAt"]
+    },
+    "WaterLog": {
+      "title": "WaterLog",
+      "description": "An individual water or beverage intake log entry",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner user ID" },
+        "amountMl": { "type": "integer", "description": "Intake volume in milliliters" },
+        "beverageType": { "type": "string", "description": "Type of drink (water, tea, coffee, juice, etc.)" },
+        "container": { "type": "string", "description": "Container type (glass, cup, bottle, etc.)" },
+        "dateString": { "type": "string", "description": "Date string in YYYY-MM-DD format" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp via serverTimestamp" }
+      },
+      "required": ["userId", "amountMl", "beverageType", "dateString", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User account document containing preferences and target hydration goals"
+    },
+    "/users/{userId}/waterLogs/{logId}": {
+      "schema": { "$ref": "#/entities/WaterLog" },
+      "description": "Subcollection of all water drink logs logged by the user"
+    }
+  }
+}

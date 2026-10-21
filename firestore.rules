@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.dailyGoalMl is int && data.dailyGoalMl >= 100 && data.dailyGoalMl <= 20000 &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 150)) &&
+             (!('unit' in data) || (data.unit is string && (data.unit == 'ml' || data.unit == 'oz'))) &&
+             (!('reminderEnabled' in data) || data.reminderEnabled is bool) &&
+             (!('reminderIntervalMinutes' in data) || (data.reminderIntervalMinutes is int && data.reminderIntervalMinutes >= 15 && data.reminderIntervalMinutes <= 720)) &&
+             (!('reminderStartTime' in data) || (data.reminderStartTime is string && data.reminderStartTime.size() <= 10)) &&
+             (!('reminderEndTime' in data) || (data.reminderEndTime is string && data.reminderEndTime.size() <= 10)) &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    function isValidWaterLog(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.amountMl is int && data.amountMl >= 1 && data.amountMl <= 10000 &&
+             data.beverageType is string && data.beverageType.size() <= 50 &&
+             data.dateString is string && data.dateString.size() <= 20 &&
+             (!('container' in data) || (data.container is string && data.container.size() <= 50)) &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    // User profile collection
+    match /users/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId;
+
+      allow create: if isSignedIn() &&
+                       request.auth.uid == userId &&
+                       isValidId(userId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'dailyGoalMl', 'createdAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'email', 'dailyGoalMl', 'unit', 'reminderEnabled', 'reminderIntervalMinutes', 'reminderStartTime', 'reminderEndTime', 'createdAt', 'updatedAt']) &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       request.auth.uid == userId &&
+                       isValidId(userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'dailyGoalMl', 'unit', 'reminderEnabled', 'reminderIntervalMinutes', 'reminderStartTime', 'reminderEndTime', 'updatedAt']);
+
+      allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
+
+      // Water intake subcollection
+      match /waterLogs/{logId} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(logId) &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().keys().hasAll(['userId', 'amountMl', 'beverageType', 'dateString', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'amountMl', 'beverageType', 'container', 'dateString', 'createdAt', 'updatedAt']) &&
+                         incoming().createdAt is timestamp &&
+                         incoming().createdAt <= request.time &&
+                         isValidWaterLog(incoming());
+
+        allow update: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(logId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidWaterLog(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['amountMl', 'beverageType', 'container', 'dateString', 'updatedAt']);
+
+        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(logId);
+      }
+    }
+  }
+}

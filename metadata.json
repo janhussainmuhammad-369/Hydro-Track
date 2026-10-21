@@ -1,0 +1,8 @@
+{
+  "name": "HydroTrack",
+  "description": "Daily water intake tracker with smart reminder alerts, drink logging, and hydration history.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
